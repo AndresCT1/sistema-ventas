@@ -19,6 +19,7 @@ export default function Perfil() {
     full_name: '',
     fecha_ingreso_wow: '',
     anticipacion_notif: 60,
+    telegram_chat_id: '',
   })
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
@@ -30,6 +31,7 @@ export default function Perfil() {
         full_name:          profile.full_name,
         fecha_ingreso_wow:  profile.fecha_ingreso_wow ?? '',
         anticipacion_notif: profile.anticipacion_notif ?? 60,
+        telegram_chat_id:   profile.telegram_chat_id ?? '',
       })
     }
   }, [profile])
@@ -42,6 +44,7 @@ export default function Perfil() {
       full_name:          form.full_name,
       fecha_ingreso_wow:  form.fecha_ingreso_wow || null,
       anticipacion_notif: form.anticipacion_notif,
+      telegram_chat_id:   form.telegram_chat_id || null,
     }).eq('id', profile.id)
     await refreshProfile()
     setSaving(false)
@@ -142,6 +145,32 @@ export default function Perfil() {
           <p className="text-xs text-slate-400 mt-1">
             Recibirás la notificación antes de la hora programada de llamada.
           </p>
+        </div>
+
+        {/* Telegram */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Tu Chat ID de Telegram
+            {form.telegram_chat_id && (
+              <span className="ml-2 text-xs text-green-600 font-normal">✓ Configurado</span>
+            )}
+          </label>
+          <input
+            type="text"
+            value={form.telegram_chat_id}
+            onChange={e => setForm(f => ({ ...f, telegram_chat_id: e.target.value }))}
+            placeholder="Ej: 123456789"
+            className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          />
+          <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 space-y-1">
+            <p className="text-xs font-semibold text-slate-600">Para obtener tu Chat ID:</p>
+            <ol className="text-xs text-slate-500 space-y-0.5 list-decimal list-inside">
+              <li>Abre Telegram</li>
+              <li>Busca <span className="font-medium text-violet-700">@wowventas_bot</span></li>
+              <li>Escribe <span className="font-mono bg-slate-100 px-1 rounded">/start</span></li>
+              <li>El bot te enviará tu Chat ID — cópialo aquí</li>
+            </ol>
+          </div>
         </div>
 
         {saved && (

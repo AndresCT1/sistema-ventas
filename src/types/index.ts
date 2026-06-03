@@ -5,6 +5,7 @@ export interface Profile {
   role: 'vendedor' | 'admin'
   fecha_ingreso_wow?: string | null
   anticipacion_notif?: number | null
+  telegram_chat_id?: string | null
   created_at: string
 }
 
