@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabase'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,44 +26,51 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-600 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800">Sistema de Ventas</h2>
-          <p className="text-slate-500 text-sm mt-1">Inicia sesión para continuar</p>
-        </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-10"
+      style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #FF6B00 100%)' }}
+    >
+      {/* Branding */}
+      <div className="text-center mb-8 animate-fade-in">
+        <h1 className="text-5xl font-extrabold text-white tracking-tight drop-shadow-md">
+          VENDAMOS
+        </h1>
+        <p className="text-white/80 text-sm mt-2 font-medium">Sistema de gestión WOW Perú</p>
+      </div>
+
+      {/* Card */}
+      <div
+        className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-8 animate-fade-in"
+        style={{ animationDelay: '0.1s' }}
+      >
+        <h2 className="text-lg font-bold text-[#1A1A2E] mb-6 text-center">Iniciar sesión</h2>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Email</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="vendedor@empresa.com"
+              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all duration-200"
+              placeholder="tu@email.com"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+            <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Contraseña</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all duration-200"
               placeholder="••••••••"
               required
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2.5 rounded-lg text-sm">
               {error}
             </div>
           )}
@@ -71,12 +78,19 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-60 text-sm"
+            className="w-full text-white font-bold py-3 rounded-lg text-sm transition-all duration-200 disabled:opacity-60 active:scale-[0.98] mt-2"
+            style={{ background: loading ? '#ccc' : '#FF6B00' }}
+            onMouseEnter={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#E05A00' }}
+            onMouseLeave={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#FF6B00' }}
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
       </div>
+
+      <p className="text-white/50 text-xs mt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        WOW Perú © {new Date().getFullYear()}
+      </p>
     </div>
   )
 }

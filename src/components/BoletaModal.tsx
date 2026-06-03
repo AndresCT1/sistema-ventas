@@ -67,13 +67,14 @@ export default function BoletaModal({ venta, onClose, onSaved }: BoletaModalProp
       </div>
 
       {/* Código copiado */}
-      <div className="shrink-0 bg-violet-50 border-b border-violet-200 px-4 py-3 flex items-start gap-2.5">
-        <svg className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="shrink-0 border-b px-4 py-3 flex items-start gap-2.5"
+        style={{ background: '#FFF3EA', borderColor: '#FFD0AA' }}>
+        <svg className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#FF6B00' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 3l2 2 4-4" />
         </svg>
         <div>
-          <p className="text-sm font-semibold text-violet-800">Código copiado: {venta.codigo_pago}</p>
-          <p className="text-xs text-violet-600 mt-0.5">Pégalo en el campo de la página</p>
+          <p className="text-sm font-semibold" style={{ color: '#E05A00' }}>Código copiado: {venta.codigo_pago}</p>
+          <p className="text-xs mt-0.5" style={{ color: '#FF6B00' }}>Pégalo en el campo de la página</p>
         </div>
       </div>
 
@@ -102,7 +103,8 @@ export default function BoletaModal({ venta, onClose, onSaved }: BoletaModalProp
               <p className="text-xs text-slate-500 mt-1">El código ya fue copiado al portapapeles</p>
             </div>
             <a href={WOW_URL} target="_blank" rel="noreferrer"
-              className="bg-violet-700 hover:bg-violet-800 text-white font-bold px-8 py-4 rounded-2xl text-sm flex items-center gap-2.5 shadow-lg shadow-violet-200 active:scale-95 transition-all">
+              className="text-white font-bold px-8 py-4 rounded-2xl text-sm flex items-center gap-2.5 active:scale-95 transition-all"
+            style={{ background: '#FF6B00', boxShadow: '0 4px 16px rgba(255,107,0,0.35)' }}>
               Abrir página de WOW
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -118,7 +120,7 @@ export default function BoletaModal({ venta, onClose, onSaved }: BoletaModalProp
         {/* Factura activa */}
         {facturaActiva ? (
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#FF6B00' }}>
               Factura activa: Factura {facturaActiva.numero} · {facturaPeriodoLabel(facturaActiva)}
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -156,9 +158,10 @@ export default function BoletaModal({ venta, onClose, onSaved }: BoletaModalProp
               <div className="flex gap-2">
                 {([1,2,3] as const).map(n => (
                   <button key={n} onClick={() => setManualF(n)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
-                      manualF === n ? 'bg-violet-700 text-white border-violet-700' : 'bg-white text-slate-600 border-slate-300'
-                    }`}>
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold border transition-all duration-200"
+                    style={manualF === n
+                      ? { background: '#FF6B00', color: '#fff', borderColor: '#FF6B00' }
+                      : { background: '#fff', color: '#64748B', borderColor: '#E2E8F0' }}>
                     F{n}
                     <span className="block text-[10px] font-normal opacity-70">
                       {facturaPeriodoLabel(facturas[n - 1])}

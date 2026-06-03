@@ -220,7 +220,7 @@ export default function Comisiones() {
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-700" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF6B00]" />
       </div>
     )
   }
@@ -236,10 +236,10 @@ export default function Comisiones() {
 
       {/* Título + selector admin */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-800">Comisiones</h2>
+        <h2 className="text-xl font-extrabold text-[#1A1A2E] border-b-2 border-[#FF6B00] pb-1">Comisiones</h2>
         {profile?.role === 'admin' && (
           <select value={targetId} onChange={e => handleSelectVendedor(e.target.value)}
-            className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white max-w-[160px]">
+            className="text-sm border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white max-w-[160px]">
             {vendedores.map(v => <option key={v.id} value={v.id}>{v.full_name}</option>)}
           </select>
         )}
@@ -266,24 +266,25 @@ export default function Comisiones() {
       <div ref={pillsRef} className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {pagoMeses.map(mes => (
           <button key={mes} onClick={() => setPagoMes(mes)}
-            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              mes === pagoMes
-                ? 'bg-violet-700 text-white shadow-sm'
-                : 'bg-white border border-slate-200 text-slate-600 hover:border-violet-300 hover:text-violet-700'
-            }`}>
+            className="shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-200"
+            style={mes === pagoMes
+              ? { background: '#FF6B00', color: '#fff', borderColor: '#FF6B00', boxShadow: '0 2px 8px rgba(255,107,0,0.3)' }
+              : { background: '#fff', color: '#64748B', borderColor: '#E2E8F0' }}>
             {periodoShort(mes)}
           </button>
         ))}
       </div>
 
       {/* Tarjeta resumen */}
-      <div className="bg-gradient-to-br from-violet-800 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
-        <p className="text-xs font-medium text-violet-300 mb-4">Pago: {getLastDay(pagoMes)}</p>
-        <div className="border-t border-violet-500/50 pt-4">
-          <p className="text-xs font-bold tracking-widest text-violet-200 uppercase mb-1">Total a cobrar</p>
-          <p className="text-5xl font-bold tabular-nums mb-5">{fmt(totalBruto)}</p>
+      <div className="rounded-2xl p-5 text-white"
+        style={{ background: 'linear-gradient(135deg, #FF6B00 0%, #7C3AED 100%)', boxShadow: '0 6px 24px rgba(255,107,0,0.3)' }}>
+        <p className="text-xs font-medium text-white/70 mb-4">Pago: {getLastDay(pagoMes)}</p>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: '1rem' }}>
+          <p className="text-xs font-bold tracking-widest text-white/70 uppercase mb-1">Total a cobrar</p>
+          <p className="text-5xl font-extrabold tabular-nums mb-5">{fmt(totalBruto)}</p>
           <button onClick={() => setShowDetalle(true)}
-            className="w-full bg-white text-violet-800 font-bold py-3 rounded-xl text-sm hover:bg-violet-50 active:scale-[0.98] transition-all">
+            className="w-full font-bold py-3 rounded-xl text-sm active:scale-[0.98] transition-all duration-200"
+            style={{ background: 'rgba(255,255,255,0.9)', color: '#FF6B00' }}>
             Ver detalle
           </button>
         </div>
@@ -297,7 +298,7 @@ export default function Comisiones() {
             {/* Header modal */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0 border-b border-slate-100">
               <div>
-                <h3 className="font-bold text-slate-800">Detalle de comisiones</h3>
+                <h3 className="font-bold text-[#1A1A2E]">Detalle de comisiones</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Cobro el {getLastDay(pagoMes)}</p>
               </div>
               <button onClick={() => setShowDetalle(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
@@ -344,9 +345,9 @@ export default function Comisiones() {
               />
 
               {/* Total */}
-              <div className="border-t-2 border-slate-200 pt-4 flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Total mes</span>
-                <span className="text-xl font-bold text-violet-700 tabular-nums">{fmt(totalBruto)}</span>
+              <div className="pt-4 flex justify-between items-center" style={{ borderTop: '2px solid #FFF3EA' }}>
+                <span className="text-sm font-bold text-[#1A1A2E] uppercase tracking-wide">Total mes</span>
+                <span className="text-xl font-extrabold tabular-nums" style={{ color: '#FF6B00' }}>{fmt(totalBruto)}</span>
               </div>
             </div>
           </div>
@@ -384,10 +385,11 @@ function CosechaCard({
       {/* Encabezado */}
       <div>
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-bold text-slate-800 tracking-wide">
+          <p className="text-xs font-bold text-[#1A1A2E] tracking-wide">
             COSECHA {mesNombre}
           </p>
-          <span className="text-xs text-violet-600 font-medium bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full shrink-0">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+            style={{ background: '#FFF3EA', color: '#FF6B00', border: '1px solid #FFD0AA' }}>
             {pctAnticipo}% · anticipo mes {antipoNum}
           </span>
         </div>
@@ -419,7 +421,8 @@ function CosechaCard({
             </div>
           </div>
           <button onClick={onCalcFromPagos}
-            className="w-full text-xs text-violet-600 font-medium bg-violet-50 hover:bg-violet-100 border border-violet-200 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+            className="w-full text-xs font-semibold py-1.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"
+            style={{ background: '#FFF3EA', color: '#FF6B00', border: '1px solid #FFD0AA' }}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
@@ -434,7 +437,7 @@ function CosechaCard({
                 type="number" min={0} max={ventas.length} step={1}
                 value={noPago ?? 0}
                 onChange={e => onNoPagoChange?.(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                className="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
               />
             </div>
           )}
@@ -442,7 +445,7 @@ function CosechaCard({
           {/* Anticipo */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-600">Anticipo</span>
-            <span className="text-sm font-bold text-violet-700 tabular-nums">{fmt(anticipo.anticipoBruto)}</span>
+            <span className="text-sm font-bold tabular-nums" style={{ color: '#FF6B00' }}>{fmt(anticipo.anticipoBruto)}</span>
           </div>
 
           {/* Penalización (solo mes 3) */}
@@ -469,7 +472,8 @@ function CosechaCard({
       )}
 
       <button onClick={onSave} disabled={saving || noVentas}
-        className="w-full bg-violet-700 hover:bg-violet-800 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-40">
+        className="w-full text-white text-xs font-bold py-2.5 rounded-lg transition-all duration-200 disabled:opacity-40"
+        style={{ background: '#FF6B00' }}>
         {saving ? 'Guardando...' : 'Guardar'}
       </button>
     </div>
