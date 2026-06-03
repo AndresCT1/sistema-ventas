@@ -15,7 +15,7 @@ export default defineConfig({
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'VENDAMOS — WOW Perú',
         short_name: 'VENDAMOS',
@@ -26,7 +26,7 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
     }),
