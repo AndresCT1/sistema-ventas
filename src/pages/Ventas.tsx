@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { PLANES, getPlanByPrecio } from '../lib/comisiones'
 import type { Venta } from '../types'
 
 function formatDate(dateStr: string) {
@@ -32,12 +33,16 @@ function getMesOptions() {
   return options
 }
 
+const today = new Date().toISOString().split('T')[0]
+
 const emptyForm = {
   cliente_nombre: '',
   cliente_telefono: '',
   cliente_direccion: '',
   codigo_pago: '',
-  fecha_inicio: new Date().toISOString().split('T')[0],
+  fecha_inicio: today,
+  plan_precio: '',
+  fecha_instalacion: today,
 }
 
 export default function Ventas() {
@@ -91,6 +96,8 @@ export default function Ventas() {
       cliente_direccion: v.cliente_direccion,
       codigo_pago: v.codigo_pago,
       fecha_inicio: v.fecha_inicio,
+      plan_precio: v.plan_precio ? String(v.plan_precio) : '',
+      fecha_instalacion: v.fecha_instalacion ?? today,
     })
     setShowModal(true)
   }
@@ -100,10 +107,20 @@ export default function Ventas() {
     if (!profile) return
     setSaving(true)
     const fecha_renovacion = addMonths(form.fecha_inicio, 6)
+    const payload = {
+      cliente_nombre: form.cliente_nombre,
+      cliente_telefono: form.cliente_telefono,
+      cliente_direccion: form.cliente_direccion,
+      codigo_pago: form.codigo_pago,
+      fecha_inicio: form.fecha_inicio,
+      fecha_renovacion,
+      plan_precio: form.plan_precio ? parseFloat(form.plan_precio) : null,
+      fecha_instalacion: form.fecha_instalacion || null,
+    }
     if (editing) {
-      await supabase.from('ventas').update({ ...form, fecha_renovacion }).eq('id', editing.id)
+      await supabase.from('ventas').update(payload).eq('id', editing.id)
     } else {
-      await supabase.from('ventas').insert({ ...form, fecha_renovacion, vendedor_id: profile.id })
+      await supabase.from('ventas').insert({ ...payload, vendedor_id: profile.id })
     }
     setSaving(false)
     setShowModal(false)
@@ -137,7 +154,6 @@ export default function Ventas() {
         </button>
       </div>
 
-      {/* Mes selector */}
       <div className="mb-3">
         <select
           value={mesSeleccionado}
@@ -150,7 +166,6 @@ export default function Ventas() {
         </select>
       </div>
 
-      {/* Search */}
       <div className="mb-4">
         <input
           type="text"
@@ -174,6 +189,7 @@ export default function Ventas() {
           {filtered.map(v => {
             const diff = diffDays(v.fecha_renovacion)
             const venceProxima = diff <= 30
+            const plan = getPlanByPrecio(v.plan_precio)
             return (
               <div
                 key={v.id}
@@ -184,7 +200,13 @@ export default function Ventas() {
                     <p className="font-semibold text-slate-800 truncate">{v.cliente_nombre}</p>
                     <p className="text-sm text-slate-600">{v.cliente_telefono}</p>
                     <p className="text-xs text-slate-500 mt-0.5">Código: {v.codigo_pago}</p>
-                    <p className="text-xs text-slate-500">Inicio: {formatDate(v.fecha_inicio)} · Vence: {formatDate(v.fecha_renovacion)}</p>
+                    {plan && <p className="text-xs text-blue-600 mt-0.5">{plan.descripcion}</p>}
+                    <p className="text-xs text-slate-500">
+                      Inicio: {formatDate(v.fecha_inicio)} · Vence: {formatDate(v.fecha_renovacion)}
+                    </p>
+                    {v.fecha_instalacion && (
+                      <p className="text-xs text-slate-400">Instalación: {formatDate(v.fecha_instalacion)}</p>
+                    )}
                   </div>
                   {venceProxima && diff >= 0 && (
                     <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-medium text-white ml-2 ${diff <= 7 ? 'bg-red-500' : 'bg-amber-500'}`}>
@@ -235,12 +257,18 @@ export default function Ventas() {
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <Row label="Cliente" value={showDetalle.cliente_nombre} />
-              <Row label="Teléfono" value={showDetalle.cliente_telefono} />
-              <Row label="Dirección" value={showDetalle.cliente_direccion} />
-              <Row label="Código de pago" value={showDetalle.codigo_pago} />
-              <Row label="Inicio de contrato" value={formatDate(showDetalle.fecha_inicio)} />
-              <Row label="Renovación" value={formatDate(showDetalle.fecha_renovacion)} />
+              <Row label="Cliente"          value={showDetalle.cliente_nombre} />
+              <Row label="Teléfono"         value={showDetalle.cliente_telefono} />
+              <Row label="Dirección"        value={showDetalle.cliente_direccion} />
+              <Row label="Código de pago"   value={showDetalle.codigo_pago} />
+              {showDetalle.plan_precio && (
+                <Row label="Plan" value={getPlanByPrecio(showDetalle.plan_precio)?.descripcion ?? String(showDetalle.plan_precio)} />
+              )}
+              <Row label="Inicio"      value={formatDate(showDetalle.fecha_inicio)} />
+              <Row label="Renovación"  value={formatDate(showDetalle.fecha_renovacion)} />
+              {showDetalle.fecha_instalacion && (
+                <Row label="Instalación" value={formatDate(showDetalle.fecha_instalacion)} />
+              )}
             </div>
           </div>
         </div>
@@ -261,54 +289,50 @@ export default function Ventas() {
             <form onSubmit={handleSave} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del cliente *</label>
-                <input
-                  required
-                  type="text"
-                  value={form.cliente_nombre}
+                <input required type="text" value={form.cliente_nombre}
                   onChange={e => setForm(f => ({ ...f, cliente_nombre: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Juan Pérez"
-                />
+                  placeholder="Juan Pérez" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono *</label>
-                <input
-                  required
-                  type="tel"
-                  value={form.cliente_telefono}
+                <input required type="tel" value={form.cliente_telefono}
                   onChange={e => setForm(f => ({ ...f, cliente_telefono: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="+54 11 1234-5678"
-                />
+                  placeholder="+51 999 999 999" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Dirección *</label>
-                <input
-                  required
-                  type="text"
-                  value={form.cliente_direccion}
+                <input required type="text" value={form.cliente_direccion}
                   onChange={e => setForm(f => ({ ...f, cliente_direccion: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Calle 123, Ciudad"
-                />
+                  placeholder="Av. Principal 123" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Código de pago *</label>
-                <input
-                  required
-                  type="text"
-                  value={form.codigo_pago}
+                <input required type="text" value={form.codigo_pago}
                   onChange={e => setForm(f => ({ ...f, codigo_pago: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="COD-0001"
-                />
+                  placeholder="COD-0001" />
               </div>
+
+              {/* Plan vendido */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Plan vendido *</label>
+                <select required value={form.plan_precio}
+                  onChange={e => setForm(f => ({ ...f, plan_precio: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Seleccionar plan...</option>
+                  {PLANES.map(p => (
+                    <option key={p.precio} value={p.precio}>{p.descripcion}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de inicio del contrato *</label>
-                <input
-                  required
-                  type="date"
-                  value={form.fecha_inicio}
+                <input required type="date" value={form.fecha_inicio}
                   onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -318,9 +342,18 @@ export default function Ventas() {
                   </p>
                 )}
               </div>
-              <button
-                type="submit"
-                disabled={saving}
+
+              {/* Fecha de instalación efectiva */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de instalación efectiva *</label>
+                <input required type="date" value={form.fecha_instalacion}
+                  onChange={e => setForm(f => ({ ...f, fecha_instalacion: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Define a qué cosecha pertenece esta venta</p>
+              </div>
+
+              <button type="submit" disabled={saving}
                 className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60"
               >
                 {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Registrar venta'}

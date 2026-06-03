@@ -3,6 +3,7 @@ export interface Profile {
   email: string
   full_name: string
   role: 'vendedor' | 'admin'
+  fecha_ingreso_wow?: string | null
   created_at: string
 }
 
@@ -27,6 +28,26 @@ export interface Venta {
   codigo_pago: string
   fecha_inicio: string
   fecha_renovacion: string
+  plan_precio?: number | null
+  fecha_instalacion?: string | null
   vendedor?: Profile
   created_at: string
+}
+
+export interface Cosecha {
+  id?: string
+  vendedor_id: string
+  periodo: string
+  fecha_inicio: string
+  fecha_fin: string
+  total_ventas: number
+  nominal_1: number
+  nominal_2: number
+  nominal_total: number
+  pct_boleta_1: number
+  pct_boleta_2: number
+  pct_boleta_3: number
+  no_pago_count: number
+  created_at?: string
+  updated_at?: string
 }

@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Referidos from './pages/Referidos'
 import Ventas from './pages/Ventas'
+import Comisiones from './pages/Comisiones'
 import Layout from './components/Layout'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="referidos" element={<Referidos />} />
           <Route path="ventas" element={<Ventas />} />
+          <Route path="comisiones" element={<Comisiones />} />
         </Route>
       </Routes>
     </BrowserRouter>
