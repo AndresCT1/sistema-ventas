@@ -1,14 +1,41 @@
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 import { supabase } from '../lib/supabase'
+
+const DISMISSED_KEY = 'push_notif_dismissed'
 
 export default function Layout() {
   const { profile } = useAuth()
-  const navigate = useNavigate()
+  const navigate    = useNavigate()
+  const { isSupported, isSubscribed, permission, subscribe } = usePushNotifications()
+  const [showBanner, setShowBanner] = useState(false)
+
+  useEffect(() => {
+    if (
+      isSupported &&
+      permission === 'default' &&
+      !isSubscribed &&
+      !localStorage.getItem(DISMISSED_KEY)
+    ) {
+      setShowBanner(true)
+    }
+  }, [isSupported, permission, isSubscribed])
 
   async function handleLogout() {
     await supabase.auth.signOut()
     navigate('/login')
+  }
+
+  async function handleAllowNotifications() {
+    setShowBanner(false)
+    await subscribe()
+  }
+
+  function handleDismissBanner() {
+    localStorage.setItem(DISMISSED_KEY, '1')
+    setShowBanner(false)
   }
 
   return (
@@ -20,30 +47,50 @@ export default function Layout() {
           {profile && <p className="text-xs text-violet-200">{profile.full_name} · {profile.role}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/perfil')}
-            className="text-violet-200 hover:text-white p-1.5 rounded-lg transition-colors"
-            title="Mi perfil"
-          >
+          <button onClick={() => navigate('/perfil')}
+            className="text-violet-200 hover:text-white p-1.5 rounded-lg transition-colors" title="Mi perfil">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </button>
-          <button
-            onClick={handleLogout}
-            className="text-xs bg-violet-900 hover:bg-violet-700 px-3 py-1.5 rounded-lg transition-colors"
-          >
+          <button onClick={handleLogout}
+            className="text-xs bg-violet-900 hover:bg-violet-700 px-3 py-1.5 rounded-lg transition-colors">
             Salir
           </button>
         </div>
       </header>
+
+      {/* Banner de permisos de notificación */}
+      {showBanner && (
+        <div className="bg-violet-700 text-white px-4 py-3 flex items-start gap-3 shrink-0">
+          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-tight">
+              ¿Permitir notificaciones para recordatorios de llamadas?
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button onClick={handleAllowNotifications}
+                className="text-xs bg-white text-violet-800 font-bold px-3 py-1.5 rounded-lg">
+                Permitir
+              </button>
+              <button onClick={handleDismissBanner}
+                className="text-xs text-violet-200 hover:text-white px-3 py-1.5 rounded-lg">
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto pb-20">
         <Outlet />
       </main>
 
-      {/* Bottom nav — 4 tabs */}
+      {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex shadow-lg">
         <NavLink to="/" end className={({ isActive }) =>
           `flex-1 flex flex-col items-center py-2 text-xs transition-colors ${isActive ? 'text-violet-700 font-semibold' : 'text-slate-500'}`}>

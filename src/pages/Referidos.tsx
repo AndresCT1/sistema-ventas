@@ -7,14 +7,14 @@ const ESTADOS = ['pendiente', 'llamado', 'convertido'] as const
 type Estado = typeof ESTADOS[number]
 
 const ESTADO_LABEL: Record<Estado, string> = {
-  pendiente: 'Pendiente',
-  llamado: 'Llamado',
+  pendiente:  'Pendiente',
+  llamado:    'Llamado',
   convertido: 'Convertido',
 }
 
 const ESTADO_COLOR: Record<Estado, string> = {
-  pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  llamado: 'bg-blue-100 text-blue-800 border-blue-300',
+  pendiente:  'bg-yellow-100 text-yellow-800 border-yellow-300',
+  llamado:    'bg-blue-100 text-blue-800 border-blue-300',
   convertido: 'bg-green-100 text-green-800 border-green-300',
 }
 
@@ -23,18 +23,29 @@ function formatDate(dateStr: string) {
   return `${d}/${m}/${y}`
 }
 
-const emptyForm = { nombre: '', telefono: '', fecha_llamada: '', notas: '', estado: 'pendiente' as Estado }
+function formatHora(h: string) {
+  return h.substring(0, 5) // "HH:MM"
+}
+
+const emptyForm = {
+  nombre: '',
+  telefono: '',
+  fecha_llamada: '',
+  hora_llamada: '',
+  notas: '',
+  estado: 'pendiente' as Estado,
+}
 
 export default function Referidos() {
   const { profile } = useAuth()
   const [referidos, setReferidos] = useState<Referido[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]     = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [editing, setEditing] = useState<Referido | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [filterEstado, setFilterEstado] = useState<Estado | 'todos'>('todos')
-  const [search, setSearch] = useState('')
+  const [editing, setEditing]     = useState<Referido | null>(null)
+  const [form, setForm]           = useState(emptyForm)
+  const [saving, setSaving]       = useState(false)
+  const [filterEstado, setFilter] = useState<Estado | 'todos'>('todos')
+  const [search, setSearch]       = useState('')
 
   useEffect(() => {
     if (profile) loadReferidos()
@@ -57,7 +68,14 @@ export default function Referidos() {
 
   function openEdit(r: Referido) {
     setEditing(r)
-    setForm({ nombre: r.nombre, telefono: r.telefono, fecha_llamada: r.fecha_llamada, notas: r.notas ?? '', estado: r.estado })
+    setForm({
+      nombre:       r.nombre,
+      telefono:     r.telefono,
+      fecha_llamada: r.fecha_llamada,
+      hora_llamada: r.hora_llamada ?? '',
+      notas:        r.notas ?? '',
+      estado:       r.estado,
+    })
     setShowModal(true)
   }
 
@@ -65,10 +83,18 @@ export default function Referidos() {
     e.preventDefault()
     if (!profile) return
     setSaving(true)
+    const payload = {
+      nombre:        form.nombre,
+      telefono:      form.telefono,
+      fecha_llamada: form.fecha_llamada,
+      hora_llamada:  form.hora_llamada || null,
+      notas:         form.notas || null,
+      estado:        form.estado,
+    }
     if (editing) {
-      await supabase.from('referidos').update(form).eq('id', editing.id)
+      await supabase.from('referidos').update(payload).eq('id', editing.id)
     } else {
-      await supabase.from('referidos').insert({ ...form, vendedor_id: profile.id })
+      await supabase.from('referidos').insert({ ...payload, vendedor_id: profile.id })
     }
     setSaving(false)
     setShowModal(false)
@@ -97,10 +123,8 @@ export default function Referidos() {
     <div className="px-4 py-5 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-slate-800">Referidos</h2>
-        <button
-          onClick={openNew}
-          className="bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 active:scale-95 transition-transform"
-        >
+        <button onClick={openNew}
+          className="bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 active:scale-95 transition-transform">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
@@ -108,24 +132,18 @@ export default function Referidos() {
         </button>
       </div>
 
-      {/* Search & filter */}
       <div className="space-y-2 mb-4">
-        <input
-          type="text"
-          placeholder="Buscar por nombre o teléfono..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <input type="text" placeholder="Buscar por nombre o teléfono..."
+          value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
         <div className="flex gap-2 overflow-x-auto pb-1">
           {(['todos', ...ESTADOS] as const).map(e => (
-            <button
-              key={e}
-              onClick={() => setFilterEstado(e)}
+            <button key={e} onClick={() => setFilter(e)}
               className={`shrink-0 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                filterEstado === e ? 'bg-blue-700 text-white border-blue-700' : 'bg-white text-slate-600 border-slate-300'
-              }`}
-            >
+                filterEstado === e
+                  ? 'bg-violet-700 text-white border-violet-700'
+                  : 'bg-white text-slate-600 border-slate-300'
+              }`}>
               {e === 'todos' ? 'Todos' : ESTADO_LABEL[e]}
             </button>
           ))}
@@ -134,7 +152,7 @@ export default function Referidos() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-700" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-slate-500 text-sm">
@@ -148,7 +166,17 @@ export default function Referidos() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 truncate">{r.nombre}</p>
                   <p className="text-sm text-slate-600">{r.telefono}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Llamar: {formatDate(r.fecha_llamada)}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Llamar: {formatDate(r.fecha_llamada)}
+                    {r.hora_llamada && (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 text-violet-600 font-medium">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {formatHora(r.hora_llamada)}
+                      </span>
+                    )}
+                  </p>
                   {r.notas && <p className="text-xs text-slate-400 italic mt-1 line-clamp-2">{r.notas}</p>}
                 </div>
                 <span className={`shrink-0 text-xs px-2 py-1 rounded-full border font-medium ${ESTADO_COLOR[r.estado]}`}>
@@ -158,24 +186,17 @@ export default function Referidos() {
 
               <div className="flex gap-2 mt-3 flex-wrap">
                 {ESTADOS.filter(e => e !== r.estado).map(e => (
-                  <button
-                    key={e}
-                    onClick={() => cambiarEstado(r, e)}
-                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors"
-                  >
+                  <button key={e} onClick={() => cambiarEstado(r, e)}
+                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors">
                     → {ESTADO_LABEL[e]}
                   </button>
                 ))}
-                <button
-                  onClick={() => openEdit(r)}
-                  className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg transition-colors ml-auto"
-                >
+                <button onClick={() => openEdit(r)}
+                  className="text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 px-2.5 py-1 rounded-lg transition-colors ml-auto">
                   Editar
                 </button>
-                <button
-                  onClick={() => handleDelete(r.id)}
-                  className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 rounded-lg transition-colors"
-                >
+                <button onClick={() => handleDelete(r.id)}
+                  className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 rounded-lg transition-colors">
                   Eliminar
                 </button>
               </div>
@@ -199,63 +220,63 @@ export default function Referidos() {
             <form onSubmit={handleSave} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nombre completo *</label>
-                <input
-                  required
-                  type="text"
-                  value={form.nombre}
+                <input required type="text" value={form.nombre}
                   onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Juan Pérez"
-                />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  placeholder="Juan Pérez" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono *</label>
-                <input
-                  required
-                  type="tel"
-                  value={form.telefono}
+                <input required type="tel" value={form.telefono}
                   onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="+54 11 1234-5678"
-                />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  placeholder="+51 999 999 999" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha programada para llamar *</label>
-                <input
-                  required
-                  type="date"
-                  value={form.fecha_llamada}
-                  onChange={e => setForm(f => ({ ...f, fecha_llamada: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+
+              {/* Fecha y hora en dos columnas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de llamada *</label>
+                  <input required type="date" value={form.fecha_llamada}
+                    onChange={e => setForm(f => ({ ...f, fecha_llamada: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Hora preferida
+                    <span className="ml-1 text-xs text-slate-400 font-normal">(opcional)</span>
+                  </label>
+                  <input type="time" value={form.hora_llamada}
+                    onChange={e => setForm(f => ({ ...f, hora_llamada: e.target.value }))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                </div>
               </div>
+              {form.hora_llamada && (
+                <p className="text-xs text-violet-600 -mt-2">
+                  Recibirás una notificación antes de la llamada según tu configuración de perfil.
+                </p>
+              )}
+
               {editing && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Estado</label>
-                  <select
-                    value={form.estado}
+                  <select value={form.estado}
                     onChange={e => setForm(f => ({ ...f, estado: e.target.value as Estado }))}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
                     {ESTADOS.map(e => <option key={e} value={e}>{ESTADO_LABEL[e]}</option>)}
                   </select>
                 </div>
               )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Notas (opcional)</label>
-                <textarea
-                  value={form.notas}
+                <textarea value={form.notas}
                   onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
                   rows={3}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="Información adicional..."
-                />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                  placeholder="Información adicional..." />
               </div>
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60"
-              >
+              <button type="submit" disabled={saving}
+                className="w-full bg-violet-700 hover:bg-violet-800 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-60">
                 {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Agregar referido'}
               </button>
             </form>

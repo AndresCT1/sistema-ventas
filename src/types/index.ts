@@ -4,6 +4,7 @@ export interface Profile {
   full_name: string
   role: 'vendedor' | 'admin'
   fecha_ingreso_wow?: string | null
+  anticipacion_notif?: number | null
   created_at: string
 }
 
@@ -13,6 +14,7 @@ export interface Referido {
   nombre: string
   telefono: string
   fecha_llamada: string
+  hora_llamada?: string | null
   notas?: string
   estado: 'pendiente' | 'llamado' | 'convertido'
   created_at: string
