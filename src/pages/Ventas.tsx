@@ -3,6 +3,10 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { PLANES, getPlanByPrecio } from '../lib/comisiones'
 import { getFacturaActiva, estadoFactura } from '../lib/facturas'
+import {
+  validateNombreCliente, validateTelefono, validateDireccion,
+  validateCodigo, validatePlan, validateFechaInstalacion,
+} from '../lib/validaciones'
 import BoletaModal from '../components/BoletaModal'
 import type { Venta } from '../types'
 
@@ -32,6 +36,39 @@ function getMesOptions() {
 const today = new Date().toISOString().split('T')[0]
 const emptyForm = { cliente_nombre:'', cliente_telefono:'', cliente_direccion:'', codigo_pago:'', fecha_inicio: today, plan_precio:'' }
 
+// ── Validación ────────────────────────────────────────────────────────────────
+
+type FormErrors = {
+  cliente_nombre: string; cliente_telefono: string; cliente_direccion: string
+  codigo_pago: string; plan_precio: string; fecha_inicio: string
+}
+type Touched = Record<keyof FormErrors, boolean>
+
+function getErrors(form: typeof emptyForm): FormErrors {
+  return {
+    cliente_nombre:   validateNombreCliente(form.cliente_nombre),
+    cliente_telefono: validateTelefono(form.cliente_telefono),
+    cliente_direccion:validateDireccion(form.cliente_direccion),
+    codigo_pago:      validateCodigo(form.codigo_pago),
+    plan_precio:      validatePlan(form.plan_precio),
+    fecha_inicio:     validateFechaInstalacion(form.fecha_inicio),
+  }
+}
+
+const emptyErrors: FormErrors = { cliente_nombre:'', cliente_telefono:'', cliente_direccion:'', codigo_pago:'', plan_precio:'', fecha_inicio:'' }
+const emptyTouched: Touched   = { cliente_nombre:false, cliente_telefono:false, cliente_direccion:false, codigo_pago:false, plan_precio:false, fecha_inicio:false }
+
+function inputCls(field: keyof Touched, touched: Touched, errors: FormErrors) {
+  const base = 'w-full rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none transition-all'
+  if (!touched[field]) return `${base} border border-slate-200 focus:ring-2 focus:ring-[#FF6B00]`
+  if (errors[field])   return `${base} border-2 border-red-500 focus:ring-2 focus:ring-red-100`
+  return `${base} border-2 border-green-500 focus:ring-2 focus:ring-green-100`
+}
+
+function FieldError({ msg }: { msg: string }) {
+  return msg ? <p className="text-xs text-red-500 mt-1">⚠ {msg}</p> : null
+}
+
 // ── Badges F1/F2/F3 ───────────────────────────────────────────────────────────
 function FacturasBadges({ v }: { v: Venta }) {
   const activa = getFacturaActiva(v.fecha_inicio, today)
@@ -53,6 +90,8 @@ function FacturasBadges({ v }: { v: Venta }) {
   )
 }
 
+// ── Componente principal ──────────────────────────────────────────────────────
+
 export default function Ventas() {
   const { profile } = useAuth()
   const [ventas, setVentas]           = useState<Venta[]>([])
@@ -65,6 +104,8 @@ export default function Ventas() {
   const [mesSeleccionado, setMesSel]  = useState(new Date().toISOString().substring(0, 7))
   const [showDetalle, setShowDetalle] = useState<Venta | null>(null)
   const [showBoleta, setShowBoleta]   = useState<Venta | null>(null)
+  const [errors, setErrors]           = useState<FormErrors>(emptyErrors)
+  const [touched, setTouched]         = useState<Touched>(emptyTouched)
   const mesOptions = getMesOptions()
 
   const loadVentas = useCallback(async () => {
@@ -82,17 +123,36 @@ export default function Ventas() {
 
   useEffect(() => { if (profile) loadVentas() }, [profile, loadVentas])
 
-  function openNew() { setEditing(null); setForm(emptyForm); setShowModal(true) }
+  function resetModal() { setErrors(emptyErrors); setTouched(emptyTouched) }
+
+  function openNew() { setEditing(null); setForm(emptyForm); resetModal(); setShowModal(true) }
   function openEdit(v: Venta) {
     setEditing(v)
     setForm({ cliente_nombre: v.cliente_nombre, cliente_telefono: v.cliente_telefono, cliente_direccion: v.cliente_direccion, codigo_pago: v.codigo_pago, fecha_inicio: v.fecha_inicio, plan_precio: v.plan_precio ? String(v.plan_precio) : '' })
-    setShowModal(true)
+    resetModal(); setShowModal(true)
+  }
+
+  function handleChange(field: keyof FormErrors, value: string) {
+    const updated = { ...form, [field]: value }
+    setForm(f => ({ ...f, [field]: value }))
+    if (touched[field]) setErrors(e => ({ ...e, [field]: getErrors(updated)[field] }))
+  }
+
+  function handleBlur(field: keyof FormErrors) {
+    setTouched(t => ({ ...t, [field]: true }))
+    setErrors(e => ({ ...e, [field]: getErrors(form)[field] }))
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); if (!profile) return
+    const allTouched = Object.fromEntries(Object.keys(emptyTouched).map(k => [k, true])) as Touched
+    setTouched(allTouched)
+    const errs = getErrors(form)
+    setErrors(errs)
+    if (Object.values(errs).some(v => v !== '')) return
+
     setSaving(true)
-    const payload = { cliente_nombre: form.cliente_nombre, cliente_telefono: form.cliente_telefono, cliente_direccion: form.cliente_direccion, codigo_pago: form.codigo_pago, fecha_inicio: form.fecha_inicio, fecha_renovacion: addMonths(form.fecha_inicio, 6), plan_precio: form.plan_precio ? parseFloat(form.plan_precio) : null }
+    const payload = { cliente_nombre: form.cliente_nombre, cliente_telefono: form.cliente_telefono, cliente_direccion: form.cliente_direccion, codigo_pago: form.codigo_pago, fecha_inicio: form.fecha_inicio, fecha_renovacion: addMonths(form.fecha_inicio, 6), plan_precio: parseFloat(form.plan_precio) }
     if (editing) await supabase.from('ventas').update(payload).eq('id', editing.id)
     else         await supabase.from('ventas').insert({ ...payload, vendedor_id: profile.id })
     setSaving(false); setShowModal(false); loadVentas()
@@ -102,6 +162,9 @@ export default function Ventas() {
     if (!confirm('¿Eliminar esta venta?')) return
     await supabase.from('ventas').delete().eq('id', id); loadVentas()
   }
+
+  const allErrors = getErrors(form)
+  const canSave   = !saving && Object.values(allErrors).every(v => v === '')
 
   const filtered = ventas.filter(v =>
     v.cliente_nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -130,7 +193,6 @@ export default function Ventas() {
           {mesOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
-
       <div className="mb-4">
         <input type="text" placeholder="Buscar por nombre, teléfono o código..."
           value={search} onChange={e => setSearch(e.target.value)}
@@ -173,22 +235,22 @@ export default function Ventas() {
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   <button onClick={() => setShowDetalle(v)}
-                    className="text-xs font-medium px-2.5 py-1 rounded-lg transition-all duration-200"
+                    className="text-xs font-medium px-2.5 py-1 rounded-lg"
                     style={{ background: '#F8F7FF', color: '#64748B' }}>
                     Ver detalle
                   </button>
                   <button onClick={() => setShowBoleta(v)}
-                    className="text-xs font-bold px-3 py-1 rounded-lg text-white transition-all duration-200 active:scale-95"
+                    className="text-xs font-bold px-3 py-1 rounded-lg text-white active:scale-95 transition-all"
                     style={{ background: '#FF6B00' }}>
                     Ver boleta
                   </button>
                   <button onClick={() => openEdit(v)}
-                    className="text-xs font-medium px-2.5 py-1 rounded-lg ml-auto transition-all duration-200"
+                    className="text-xs font-medium px-2.5 py-1 rounded-lg ml-auto"
                     style={{ background: '#F3F0FF', color: '#7C3AED' }}>
                     Editar
                   </button>
                   <button onClick={() => handleDelete(v.id)}
-                    className="text-xs font-medium px-2.5 py-1 rounded-lg transition-all duration-200"
+                    className="text-xs font-medium px-2.5 py-1 rounded-lg"
                     style={{ background: '#FFF5F5', color: '#EF4444' }}>
                     Eliminar
                   </button>
@@ -250,40 +312,81 @@ export default function Ventas() {
               </button>
             </div>
             <form onSubmit={handleSave} className="p-5 space-y-4">
-              {[
-                { label:'Nombre del cliente *', key:'cliente_nombre',   type:'text', ph:'Juan Pérez' },
-                { label:'Teléfono *',           key:'cliente_telefono', type:'tel',  ph:'+51 999 999 999' },
-                { label:'Dirección *',          key:'cliente_direccion',type:'text', ph:'Av. Principal 123' },
-                { label:'Código de pago *',     key:'codigo_pago',      type:'text', ph:'COD-0001' },
-              ].map(({ label, key, type, ph }) => (
-                <div key={key}>
-                  <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">{label}</label>
-                  <input required type={type} value={form[key as keyof typeof form] as string}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-all"
-                    placeholder={ph} />
-                </div>
-              ))}
+
+              {/* Nombre */}
+              <div>
+                <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Nombre del cliente *</label>
+                <input type="text" value={form.cliente_nombre}
+                  onChange={e => handleChange('cliente_nombre', e.target.value)}
+                  onBlur={() => handleBlur('cliente_nombre')}
+                  className={inputCls('cliente_nombre', touched, errors)}
+                  placeholder="Juan Pérez" />
+                <FieldError msg={touched.cliente_nombre ? errors.cliente_nombre : ''} />
+              </div>
+
+              {/* Teléfono */}
+              <div>
+                <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Teléfono *</label>
+                <input type="tel" value={form.cliente_telefono} maxLength={9}
+                  onChange={e => handleChange('cliente_telefono', e.target.value.replace(/\D/g, ''))}
+                  onBlur={() => handleBlur('cliente_telefono')}
+                  className={inputCls('cliente_telefono', touched, errors)}
+                  placeholder="987654321" />
+                <FieldError msg={touched.cliente_telefono ? errors.cliente_telefono : ''} />
+              </div>
+
+              {/* Dirección */}
+              <div>
+                <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Dirección *</label>
+                <input type="text" value={form.cliente_direccion}
+                  onChange={e => handleChange('cliente_direccion', e.target.value)}
+                  onBlur={() => handleBlur('cliente_direccion')}
+                  className={inputCls('cliente_direccion', touched, errors)}
+                  placeholder="Av. Principal 123, Miraflores" />
+                <FieldError msg={touched.cliente_direccion ? errors.cliente_direccion : ''} />
+              </div>
+
+              {/* Código de pago */}
+              <div>
+                <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Código de pago *</label>
+                <input type="text" value={form.codigo_pago} maxLength={11}
+                  onChange={e => handleChange('codigo_pago', e.target.value.replace(/\D/g, ''))}
+                  onBlur={() => handleBlur('codigo_pago')}
+                  className={inputCls('codigo_pago', touched, errors)}
+                  placeholder="20261234567" />
+                <FieldError msg={touched.codigo_pago ? errors.codigo_pago : ''} />
+              </div>
+
+              {/* Plan */}
               <div>
                 <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Plan vendido *</label>
-                <select required value={form.plan_precio} onChange={e => setForm(f => ({ ...f, plan_precio: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-all">
+                <select value={form.plan_precio}
+                  onChange={e => handleChange('plan_precio', e.target.value)}
+                  onBlur={() => handleBlur('plan_precio')}
+                  className={inputCls('plan_precio', touched, errors)}>
                   <option value="">Seleccionar plan...</option>
                   {PLANES.map(p => <option key={p.precio} value={p.precio}>{p.descripcion}</option>)}
                 </select>
+                <FieldError msg={touched.plan_precio ? errors.plan_precio : ''} />
               </div>
+
+              {/* Fecha de instalación */}
               <div>
                 <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">Fecha de instalación *</label>
-                <input required type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-all" />
-                {form.fecha_inicio && (
+                <input type="date" value={form.fecha_inicio}
+                  onChange={e => handleChange('fecha_inicio', e.target.value)}
+                  onBlur={() => handleBlur('fecha_inicio')}
+                  className={inputCls('fecha_inicio', touched, errors)} />
+                <FieldError msg={touched.fecha_inicio ? errors.fecha_inicio : ''} />
+                {!errors.fecha_inicio && form.fecha_inicio && (
                   <p className="text-xs text-slate-400 mt-1">
                     Renovación: {formatDate(addMonths(form.fecha_inicio, 6))} · Define la cosecha
                   </p>
                 )}
               </div>
-              <button type="submit" disabled={saving}
-                className="w-full text-white font-bold py-3 rounded-lg text-sm transition-all disabled:opacity-60"
+
+              <button type="submit" disabled={!canSave}
+                className="w-full text-white font-bold py-3 rounded-lg text-sm transition-all disabled:opacity-50"
                 style={{ background: '#FF6B00' }}>
                 {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Registrar venta'}
               </button>
