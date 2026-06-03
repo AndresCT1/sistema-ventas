@@ -9,19 +9,23 @@ const DISMISSED_KEY = 'push_notif_dismissed'
 export default function Layout() {
   const { profile } = useAuth()
   const navigate    = useNavigate()
-  const { isSupported, isSubscribed, permission, subscribe } = usePushNotifications()
+  const { isSupported, isSubscribed, permission, loading, subscribe } = usePushNotifications()
   const [showBanner, setShowBanner] = useState(false)
 
   useEffect(() => {
     if (
+      !loading &&
       isSupported &&
-      permission === 'default' &&
+      permission !== 'granted' &&
+      permission !== 'denied' &&
       !isSubscribed &&
       !localStorage.getItem(DISMISSED_KEY)
     ) {
       setShowBanner(true)
+    } else {
+      setShowBanner(false)
     }
-  }, [isSupported, permission, isSubscribed])
+  }, [loading, isSupported, permission, isSubscribed])
 
   async function handleLogout() {
     await supabase.auth.signOut()
