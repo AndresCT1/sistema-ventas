@@ -30,6 +30,8 @@ export interface Venta {
   fecha_renovacion: string
   plan_precio?: number | null
   fecha_instalacion?: string | null
+  estado_pago?: 'sin_verificar' | 'pagado' | 'deuda' | null
+  fecha_verificacion?: string | null
   vendedor?: Profile
   created_at: string
 }

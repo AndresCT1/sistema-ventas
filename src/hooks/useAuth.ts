@@ -64,5 +64,11 @@ export function useAuth() {
     loadingRef.current = false
   }
 
-  return { user, profile, loading }
+  async function refreshProfile() {
+    if (!user) return
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    if (data) setProfile(data)
+  }
+
+  return { user, profile, loading, refreshProfile }
 }

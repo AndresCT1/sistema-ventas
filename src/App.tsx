@@ -5,11 +5,12 @@ import Dashboard from './pages/Dashboard'
 import Referidos from './pages/Referidos'
 import Ventas from './pages/Ventas'
 import Comisiones from './pages/Comisiones'
+import Perfil from './pages/Perfil'
 import Layout from './components/Layout'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700" /></div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-700" /></div>
   return user ? <>{children}</> : <Navigate to="/login" replace />
 }
 
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="referidos" element={<Referidos />} />
           <Route path="ventas" element={<Ventas />} />
           <Route path="comisiones" element={<Comisiones />} />
+          <Route path="perfil" element={<Perfil />} />
         </Route>
       </Routes>
     </BrowserRouter>
