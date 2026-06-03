@@ -34,6 +34,12 @@ export interface Venta {
   fecha_instalacion?: string | null
   estado_pago?: 'sin_verificar' | 'pagado' | 'deuda' | null
   fecha_verificacion?: string | null
+  estado_f1?: 'sin_verificar' | 'pagado' | 'no_pago' | null
+  estado_f2?: 'sin_verificar' | 'pagado' | 'no_pago' | null
+  estado_f3?: 'sin_verificar' | 'pagado' | 'no_pago' | null
+  fecha_verificacion_f1?: string | null
+  fecha_verificacion_f2?: string | null
+  fecha_verificacion_f3?: string | null
   vendedor?: Profile
   created_at: string
 }

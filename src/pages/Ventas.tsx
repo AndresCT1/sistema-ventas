@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { PLANES, getPlanByPrecio } from '../lib/comisiones'
+import { getFacturaActiva, estadoFactura } from '../lib/facturas'
+import BoletaModal from '../components/BoletaModal'
 import type { Venta } from '../types'
-
-const WOW_BOLETA_URL = 'https://wowperu.pe/pagar-boleta/'
 
 function formatDate(dateStr: string) {
   const [y, m, d] = dateStr.split('-')
@@ -35,55 +35,32 @@ function getMesOptions() {
   return options
 }
 
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-    const el = document.createElement('textarea')
-    el.value = text
-    document.body.appendChild(el)
-    el.select()
-    document.execCommand('copy')
-    document.body.removeChild(el)
-  }
-}
-
 const today = new Date().toISOString().split('T')[0]
 
 const emptyForm = {
-  cliente_nombre: '',
-  cliente_telefono: '',
-  cliente_direccion: '',
-  codigo_pago: '',
-  fecha_inicio: today,
-  plan_precio: '',
+  cliente_nombre: '', cliente_telefono: '', cliente_direccion: '',
+  codigo_pago: '', fecha_inicio: today, plan_precio: '',
 }
 
-// ── Badge de estado de pago ───────────────────────────────────────────────────
+// ── Badges F1/F2/F3 ───────────────────────────────────────────────────────────
 
-function EstadoBadge({ estado, fecha }: { estado?: string | null; fecha?: string | null }) {
-  const fechaFmt = fecha ? ` · ${formatDate(fecha.split('T')[0])}` : ''
-  if (estado === 'pagado') {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
-        <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-        Al día{fechaFmt}
-      </span>
-    )
-  }
-  if (estado === 'deuda') {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-        Con deuda{fechaFmt}
-      </span>
-    )
-  }
+function FacturasBadges({ v }: { v: Venta }) {
+  const activa = getFacturaActiva(v.fecha_inicio, today)
   return (
-    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-      Sin verificar
-    </span>
+    <div className="flex gap-1 mt-1.5">
+      {([1, 2, 3] as const).map(n => {
+        const est = estadoFactura(v as unknown as Record<string, unknown>, n)
+        const color = est === 'pagado'   ? 'bg-green-100 text-green-700'
+                    : est === 'no_pago'  ? 'bg-red-100 text-red-600'
+                    : 'bg-slate-100 text-slate-500'
+        return (
+          <span key={n}
+            className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${color} ${activa === n ? 'ring-1 ring-violet-400' : ''}`}>
+            F{n}
+          </span>
+        )
+      })}
+    </div>
   )
 }
 
@@ -91,120 +68,63 @@ function EstadoBadge({ estado, fecha }: { estado?: string | null; fecha?: string
 
 export default function Ventas() {
   const { profile } = useAuth()
-  const [ventas, setVentas]             = useState<Venta[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [showModal, setShowModal]       = useState(false)
-  const [editing, setEditing]           = useState<Venta | null>(null)
-  const [form, setForm]                 = useState(emptyForm)
-  const [saving, setSaving]             = useState(false)
-  const [search, setSearch]             = useState('')
-  const [mesSeleccionado, setMesSel]    = useState(new Date().toISOString().substring(0, 7))
-  const [showDetalle, setShowDetalle]   = useState<Venta | null>(null)
-
-  // Estado boleta
-  const [showBoleta, setShowBoleta]         = useState<Venta | null>(null)
-  const [iframeState, setIframeState]       = useState<'loading' | 'loaded' | 'blocked'>('loading')
-  const [savingEstado, setSavingEstado]     = useState(false)
+  const [ventas, setVentas]           = useState<Venta[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [showModal, setShowModal]     = useState(false)
+  const [editing, setEditing]         = useState<Venta | null>(null)
+  const [form, setForm]               = useState(emptyForm)
+  const [saving, setSaving]           = useState(false)
+  const [search, setSearch]           = useState('')
+  const [mesSeleccionado, setMesSel]  = useState(new Date().toISOString().substring(0, 7))
+  const [showDetalle, setShowDetalle] = useState<Venta | null>(null)
+  const [showBoleta, setShowBoleta]   = useState<Venta | null>(null)
 
   const mesOptions = getMesOptions()
-
-  // Timeout para detectar si iframe fue bloqueado
-  useEffect(() => {
-    if (!showBoleta) return
-    const timer = setTimeout(() => {
-      setIframeState(s => s === 'loading' ? 'blocked' : s)
-    }, 5000)
-    return () => clearTimeout(timer)
-  }, [showBoleta])
 
   const loadVentas = useCallback(async () => {
     setLoading(true)
     const mesInicio = mesSeleccionado + '-01'
-    const d = new Date(mesInicio)
-    d.setMonth(d.getMonth() + 1)
+    const d = new Date(mesInicio); d.setMonth(d.getMonth() + 1)
     const mesFin = d.toISOString().split('T')[0]
-
     const query = supabase.from('ventas').select('*')
-      .gte('fecha_inicio', mesInicio)
-      .lt('fecha_inicio', mesFin)
+      .gte('fecha_inicio', mesInicio).lt('fecha_inicio', mesFin)
       .order('fecha_inicio', { ascending: false })
-
     if (profile?.role !== 'admin') query.eq('vendedor_id', profile!.id)
-
     const { data } = await query
     setVentas(data ?? [])
     setLoading(false)
   }, [profile, mesSeleccionado])
 
-  useEffect(() => {
-    if (profile) loadVentas()
-  }, [profile, loadVentas])
+  useEffect(() => { if (profile) loadVentas() }, [profile, loadVentas])
 
-  function openNew() {
-    setEditing(null)
-    setForm(emptyForm)
-    setShowModal(true)
-  }
-
+  function openNew()  { setEditing(null); setForm(emptyForm); setShowModal(true) }
   function openEdit(v: Venta) {
     setEditing(v)
     setForm({
-      cliente_nombre:    v.cliente_nombre,
-      cliente_telefono:  v.cliente_telefono,
-      cliente_direccion: v.cliente_direccion,
-      codigo_pago:       v.codigo_pago,
-      fecha_inicio:      v.fecha_inicio,
-      plan_precio:       v.plan_precio ? String(v.plan_precio) : '',
+      cliente_nombre: v.cliente_nombre, cliente_telefono: v.cliente_telefono,
+      cliente_direccion: v.cliente_direccion, codigo_pago: v.codigo_pago,
+      fecha_inicio: v.fecha_inicio, plan_precio: v.plan_precio ? String(v.plan_precio) : '',
     })
     setShowModal(true)
   }
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    if (!profile) return
+    e.preventDefault(); if (!profile) return
     setSaving(true)
-    const fecha_renovacion = addMonths(form.fecha_inicio, 6)
     const payload = {
-      cliente_nombre:    form.cliente_nombre,
-      cliente_telefono:  form.cliente_telefono,
-      cliente_direccion: form.cliente_direccion,
-      codigo_pago:       form.codigo_pago,
-      fecha_inicio:      form.fecha_inicio,
-      fecha_renovacion,
+      cliente_nombre: form.cliente_nombre, cliente_telefono: form.cliente_telefono,
+      cliente_direccion: form.cliente_direccion, codigo_pago: form.codigo_pago,
+      fecha_inicio: form.fecha_inicio, fecha_renovacion: addMonths(form.fecha_inicio, 6),
       plan_precio: form.plan_precio ? parseFloat(form.plan_precio) : null,
     }
-    if (editing) {
-      await supabase.from('ventas').update(payload).eq('id', editing.id)
-    } else {
-      await supabase.from('ventas').insert({ ...payload, vendedor_id: profile.id })
-    }
-    setSaving(false)
-    setShowModal(false)
-    loadVentas()
+    if (editing) await supabase.from('ventas').update(payload).eq('id', editing.id)
+    else         await supabase.from('ventas').insert({ ...payload, vendedor_id: profile.id })
+    setSaving(false); setShowModal(false); loadVentas()
   }
 
   async function handleDelete(id: string) {
     if (!confirm('¿Eliminar esta venta?')) return
-    await supabase.from('ventas').delete().eq('id', id)
-    loadVentas()
-  }
-
-  async function handleVerBoleta(v: Venta) {
-    await copyToClipboard(v.codigo_pago)
-    setIframeState('loading')
-    setShowBoleta(v)
-  }
-
-  async function handleEstadoPago(estado: 'pagado' | 'deuda') {
-    if (!showBoleta) return
-    setSavingEstado(true)
-    await supabase.from('ventas').update({
-      estado_pago: estado,
-      fecha_verificacion: new Date().toISOString(),
-    }).eq('id', showBoleta.id)
-    setSavingEstado(false)
-    setShowBoleta(null)
-    loadVentas()
+    await supabase.from('ventas').delete().eq('id', id); loadVentas()
   }
 
   const filtered = ventas.filter(v =>
@@ -215,7 +135,6 @@ export default function Ventas() {
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto">
-
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-slate-800">Ventas</h2>
         <button onClick={openNew}
@@ -264,9 +183,7 @@ export default function Ventas() {
                     <p className="text-xs text-slate-500">
                       Instalación: {formatDate(v.fecha_inicio)} · Vence: {formatDate(v.fecha_renovacion)}
                     </p>
-                    <div className="mt-1.5">
-                      <EstadoBadge estado={v.estado_pago} fecha={v.fecha_verificacion} />
-                    </div>
+                    <FacturasBadges v={v} />
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {venceProxima && diff >= 0 && (
@@ -274,27 +191,24 @@ export default function Ventas() {
                         {diff === 0 ? 'Hoy' : diff === 1 ? 'Mañana' : `${diff}d`}
                       </span>
                     )}
-                    {diff < 0 && (
-                      <span className="text-xs px-2 py-1 rounded-full font-medium text-white bg-slate-400">Vencido</span>
-                    )}
+                    {diff < 0 && <span className="text-xs px-2 py-1 rounded-full font-medium text-white bg-slate-400">Vencido</span>}
                   </div>
                 </div>
-
                 <div className="flex flex-wrap gap-2 mt-3">
                   <button onClick={() => setShowDetalle(v)}
-                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors">
+                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg">
                     Ver detalle
                   </button>
-                  <button onClick={() => handleVerBoleta(v)}
-                    className="text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 font-medium px-2.5 py-1 rounded-lg transition-colors">
+                  <button onClick={() => setShowBoleta(v)}
+                    className="text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 font-medium px-2.5 py-1 rounded-lg">
                     Ver boleta
                   </button>
                   <button onClick={() => openEdit(v)}
-                    className="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg transition-colors ml-auto">
+                    className="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg ml-auto">
                     Editar
                   </button>
                   <button onClick={() => handleDelete(v.id)}
-                    className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 rounded-lg transition-colors">
+                    className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 rounded-lg">
                     Eliminar
                   </button>
                 </div>
@@ -304,114 +218,12 @@ export default function Ventas() {
         </div>
       )}
 
-      {/* ── Modal Ver Boleta ─────────────────────────────────────────────────── */}
+      {/* Modal Ver Boleta */}
       {showBoleta && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white">
-
-          {/* Header */}
-          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-white">
-            <button onClick={() => setShowBoleta(null)}
-              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-800 truncate text-sm">{showBoleta.cliente_nombre}</p>
-              <p className="text-xs text-slate-500">Verificar boleta</p>
-            </div>
-          </div>
-
-          {/* Aviso código copiado */}
-          <div className="shrink-0 bg-violet-50 border-b border-violet-200 px-4 py-3 flex items-start gap-2.5">
-            <svg className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 3l2 2 4-4" />
-            </svg>
-            <div>
-              <p className="text-sm font-semibold text-violet-800">
-                Código copiado: {showBoleta.codigo_pago}
-              </p>
-              <p className="text-xs text-violet-600 mt-0.5">
-                Pégalo en el campo de la página
-              </p>
-            </div>
-          </div>
-
-          {/* Área iframe */}
-          <div className="flex-1 relative overflow-hidden">
-
-            {/* Spinner mientras carga */}
-            {iframeState === 'loading' && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50 gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-700" />
-                <p className="text-xs text-slate-500">Cargando página...</p>
-              </div>
-            )}
-
-            {/* Iframe (visible solo cuando loaded) */}
-            {iframeState !== 'blocked' && (
-              <iframe
-                src={WOW_BOLETA_URL}
-                title="Pagar boleta WOW"
-                className={`w-full h-full border-0 ${iframeState === 'loading' ? 'invisible' : 'visible'}`}
-                onLoad={() => setIframeState('loaded')}
-              />
-            )}
-
-            {/* Fallback si iframe fue bloqueado */}
-            {iframeState === 'blocked' && (
-              <div className="flex flex-col items-center justify-center h-full gap-5 p-8 bg-slate-50">
-                <div className="w-16 h-16 rounded-2xl bg-slate-200 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-slate-700">La página no puede mostrarse aquí</p>
-                  <p className="text-xs text-slate-500 mt-1">El código ya fue copiado al portapapeles</p>
-                </div>
-                <a
-                  href={WOW_BOLETA_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-violet-700 hover:bg-violet-800 text-white font-bold px-8 py-4 rounded-2xl text-sm flex items-center gap-2.5 transition-colors shadow-lg shadow-violet-200 active:scale-95"
-                >
-                  Abrir página de WOW
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-            )}
-          </div>
-
-          {/* Botones de estado */}
-          <div className="shrink-0 p-4 border-t border-slate-200 bg-white grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleEstadoPago('pagado')}
-              disabled={savingEstado}
-              className="bg-green-600 hover:bg-green-700 active:scale-95 text-white font-bold py-3.5 rounded-xl text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-              Cliente al día
-            </button>
-            <button
-              onClick={() => handleEstadoPago('deuda')}
-              disabled={savingEstado}
-              className="bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold py-3.5 rounded-xl text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Tiene deuda
-            </button>
-          </div>
-        </div>
+        <BoletaModal venta={showBoleta} onClose={() => setShowBoleta(null)} onSaved={loadVentas} />
       )}
 
-      {/* ── Modal Detalle ──────────────────────────────────────────────────────── */}
+      {/* Modal Detalle */}
       {showDetalle && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
@@ -434,15 +246,15 @@ export default function Ventas() {
               <Row label="Instalación" value={formatDate(showDetalle.fecha_inicio)} />
               <Row label="Renovación"  value={formatDate(showDetalle.fecha_renovacion)} />
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Estado pago</span>
-                <EstadoBadge estado={showDetalle.estado_pago} fecha={showDetalle.fecha_verificacion} />
+                <span className="text-sm text-slate-500">Facturas</span>
+                <FacturasBadges v={showDetalle} />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Modal Formulario ───────────────────────────────────────────────────── */}
+      {/* Modal Formulario */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">

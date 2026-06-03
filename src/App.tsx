@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Referidos from './pages/Referidos'
 import Ventas from './pages/Ventas'
 import Comisiones from './pages/Comisiones'
+import Pagos from './pages/Pagos'
 import Perfil from './pages/Perfil'
 import Layout from './components/Layout'
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="referidos" element={<Referidos />} />
           <Route path="ventas" element={<Ventas />} />
           <Route path="comisiones" element={<Comisiones />} />
+          <Route path="pagos" element={<Pagos />} />
           <Route path="perfil" element={<Perfil />} />
         </Route>
       </Routes>
